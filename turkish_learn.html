@@ -32,11 +32,27 @@
             margin-bottom: 5px;
         }
 
-        #turkish-word {
-            font-size: 2.5em;
-            color: #34495e;
-            margin: 20px 0;
-        }
+        #toggle-mode-btn {
+    background-color: #f0ad4e; /* Orange-ish color */
+    color: white;
+    margin-bottom: 20px;
+}
+
+#toggle-mode-btn:hover {
+    background-color: #ec971f;
+}
+
+#prompt-text {
+    font-style: italic;
+    color: #555;
+}
+
+/* IMPORTANT: Update the ID for the main word display */
+#word-display {
+    font-size: 2.5em;
+    color: #34495e;
+    margin: 20px 0;
+}
 
         #answer-input {
             width: 80%;
@@ -99,149 +115,200 @@
     </style>
 </head>
 <body>
-    
     <div class="container">
-        <h1>Turkish Vocabulary Challenge</h1>
-        <p id="word-count-info">Loading vocabulary...</p>
+    <h1>Turkish Vocabulary Challenge</h1>
+    <p id="word-count-info">Loading vocabulary...</p>
 
-        <div id="quiz-area">
-            <h2 id="turkish-word"></h2>
-            
-            <input type="text" id="answer-input" placeholder="Type the English translation..." autocomplete="off">
-            
-            <button id="submit-btn">Submit</button>
-            <button id="next-btn" style="display: none;">Next Word</button>
+    <button id="toggle-mode-btn">Switch Mode</button>
+    <hr> <div id="quiz-area">
+        <p id="prompt-text">Translate the Turkish word:</p>
+        
+        <h2 id="word-display"></h2> 
+        
+        <input type="text" id="answer-input" placeholder="Type the English translation..." autocomplete="off">
+        
+        <button id="submit-btn">Submit</button>
+        <button id="next-btn" style="display: none;">Next Word</button>
 
-            <p id="feedback"></p>
-        </div>
-
-        <div class="scoreboard">
-            <p>Score: <span id="score">0</span> / <span id="total-attempted">0</span></p>
-        </div>
+        <p id="feedback"></p>
     </div>
 
+    <div class="scoreboard">
+        <p>Score: <span id="score">0</span> / <span id="total-attempted">0</span></p>
+    </div>
+</div>
+
     <script>
-        const WORD_FILE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT02329tKFTl1kyqVzAIaUxXIYxWNq3FaisYjEUf0X4z3-S0JkaWWQJNUAphqCOcem1CuLf-9wa4XCO/pub?gid=244219585&single=true&output=csv'; 
-        let vocabularyList = [];
-        let currentWordIndex = -1;
-        let score = 0;
-        let totalAttempted = 0;
+    // Configuration: Replace this with your published Google Sheets link or embedded array
+    const WORD_FILE = 'https://docs.google.com/spreadsheets/d/e/[long_string]/pub?gid=[number]&single=true&output=csv'; 
 
-        const turkishWordEl = document.getElementById('turkish-word');
-        const answerInputEl = document.getElementById('answer-input');
-        const submitBtn = document.getElementById('submit-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const feedbackEl = document.getElementById('feedback');
-        const scoreEl = document.getElementById('score');
-        const totalAttemptedEl = document.getElementById('total-attempted');
-        const wordCountInfoEl = document.getElementById('word-count-info');
+    let vocabularyList = [];
+    let currentWordIndex = -1;
+    let score = 0;
+    let totalAttempted = 0;
+    let isReverseMode = false; // NEW: Controls the translation direction
 
-        // --- Core Functions ---
+    // DOM Elements
+    const wordDisplayEl = document.getElementById('word-display'); // Using a new ID for the main word display
+    const answerInputEl = document.getElementById('answer-input');
+    const submitBtn = document.getElementById('submit-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const feedbackEl = document.getElementById('feedback');
+    const scoreEl = document.getElementById('score');
+    const totalAttemptedEl = document.getElementById('total-attempted');
+    const wordCountInfoEl = document.getElementById('word-count-info');
+    const toggleBtn = document.getElementById('toggle-mode-btn'); // NEW: Toggle button element
+    const promptTextEl = document.getElementById('prompt-text'); // NEW: Element to display "Translate..."
 
-        // 1. Fetch and Parse the CSV file
-        async function loadVocabulary() {
-            try {
-                // Since this is running locally (file:// protocol), fetching may be restricted in some browsers.
-                // Chrome usually allows local file fetching for development/testing.
-                const response = await fetch(WORD_FILE); 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}. Please ensure 'vocabulary.csv' is in the same folder.`);
-                }
-                const csvText = await response.text();
-                
-                const lines = csvText.trim().split('\n');
-                
-                // Skip the header line (lines[0])
-                for (let i = 1; i < lines.length; i++) {
-                    const values = lines[i].split(',').map(v => v.trim());
-                    if (values.length >= 2) { 
-                        vocabularyList.push({
-                            // Assumes column 0 is Turkish, column 1 is English
-                            turkish: values[0].toLowerCase(), 
-                            english: values[1].toLowerCase() 
-                        });
-                    }
-                }
-                
-                vocabularyList = vocabularyList.filter(item => item.turkish !== '' && item.english !== '');
+    // --- Core Functions ---
 
-                if (vocabularyList.length === 0) {
-                    wordCountInfoEl.textContent = "Error: Vocabulary list is empty. Check your CSV format (Turkish,English headers).";
-                    return;
-                }
-
-                vocabularyList.sort(() => Math.random() - 0.5); // Shuffle
-                
-                wordCountInfoEl.textContent = `Ready! ${vocabularyList.length} words loaded.`;
-                nextWord();
-
-            } catch (error) {
-                console.error("Could not load or parse vocabulary file:", error);
-                wordCountInfoEl.textContent = `🔴 Error loading vocabulary: ${error.message}`;
+    // 1. Fetch and Parse the CSV file (Modified for consistency)
+    async function loadVocabulary() {
+        // Same loading logic as before (using fetch)
+        try {
+            const response = await fetch(WORD_FILE);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}.`);
             }
-        }
+            const csvText = await response.text();
+            
+            const lines = csvText.trim().split('\n');
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                if (values.length >= 2) { 
+                    vocabularyList.push({
+                        // Store the words in their original (lowercase) format
+                        turkish: values[0].toLowerCase(), 
+                        english: values[1].toLowerCase() 
+                    });
+                }
+            }
+            
+            vocabularyList = vocabularyList.filter(item => item.turkish !== '' && item.english !== '');
 
-        // 2. Display the next word
-        function nextWord() {
-            submitBtn.style.display = 'inline-block';
-            nextBtn.style.display = 'none';
-            
-            feedbackEl.textContent = '';
-            answerInputEl.value = '';
-            answerInputEl.disabled = false;
-            answerInputEl.focus(); 
-
-            // Move to the next word, wrapping around to the start
-            currentWordIndex = (currentWordIndex + 1) % vocabularyList.length;
-            
-            // Display the Turkish word in uppercase
-            turkishWordEl.textContent = vocabularyList[currentWordIndex].turkish.toUpperCase();
-        }
-
-        // 3. Check the user's answer
-        function checkAnswer() {
-            if (currentWordIndex === -1) return; 
-            
-            const correctEnglish = vocabularyList[currentWordIndex].english;
-            const userAnswer = answerInputEl.value.trim().toLowerCase();
-            
-            answerInputEl.disabled = true;
-            submitBtn.style.display = 'none';
-            nextBtn.style.display = 'inline-block';
-            nextBtn.focus(); 
-
-            totalAttempted++;
-            
-            if (userAnswer === correctEnglish) {
-                score++;
-                feedbackEl.className = 'correct';
-                feedbackEl.textContent = '✅ Correct! Well done.';
-            } else {
-                feedbackEl.className = 'incorrect';
-                feedbackEl.textContent = `❌ Incorrect. The correct translation is: "${correctEnglish.toUpperCase()}"`;
+            if (vocabularyList.length === 0) {
+                wordCountInfoEl.textContent = "Error: Vocabulary list is empty. Check your data source.";
+                return;
             }
 
-            scoreEl.textContent = score;
-            totalAttemptedEl.textContent = totalAttempted;
+            vocabularyList.sort(() => Math.random() - 0.5); // Shuffle
+            
+            wordCountInfoEl.textContent = `Ready! ${vocabularyList.length} words loaded.`;
+            updateModeDisplay(); // Initial display setup
+            nextWord();
+
+        } catch (error) {
+            console.error("Could not load vocabulary file:", error);
+            wordCountInfoEl.textContent = `🔴 Error loading vocabulary: ${error.message}`;
+        }
+    }
+
+    // 2. Display the next word (Modified for reverse mode and lower case)
+    function nextWord() {
+        submitBtn.style.display = 'inline-block';
+        nextBtn.style.display = 'none';
+        
+        feedbackEl.textContent = '';
+        answerInputEl.value = '';
+        answerInputEl.disabled = false;
+        answerInputEl.focus(); 
+
+        currentWordIndex = (currentWordIndex + 1) % vocabularyList.length;
+        
+        const currentItem = vocabularyList[currentWordIndex];
+
+        // Display the correct word based on the mode (in small/lowercase letters)
+        if (isReverseMode) {
+            wordDisplayEl.textContent = currentItem.english;
+            answerInputEl.placeholder = "Type the Turkish translation...";
+        } else {
+            wordDisplayEl.textContent = currentItem.turkish; // Display in lowercase
+            answerInputEl.placeholder = "Type the English translation...";
+        }
+    }
+
+    // 3. Check the user's answer (Modified for multiple meanings)
+    function checkAnswer() {
+        if (currentWordIndex === -1) return; 
+        
+        const currentItem = vocabularyList[currentWordIndex];
+        const userAnswer = answerInputEl.value.trim().toLowerCase();
+
+        // Determine the correct answer based on the mode
+        const correctAnswerString = isReverseMode ? currentItem.turkish : currentItem.english;
+        
+        // NEW: Split the correct answers by '/' and trim whitespace
+        const correctAnswers = correctAnswerString.split('/').map(ans => ans.trim());
+        
+        // NEW: Check if the user answer matches ANY of the correct options
+        const isCorrect = correctAnswers.includes(userAnswer);
+
+        answerInputEl.disabled = true;
+        submitBtn.style.display = 'none';
+        nextBtn.style.display = 'inline-block';
+        nextBtn.focus(); 
+
+        totalAttempted++;
+        
+        if (isCorrect) {
+            score++;
+            feedbackEl.className = 'correct';
+            feedbackEl.textContent = '✅ Correct! Well done.';
+        } else {
+            feedbackEl.className = 'incorrect';
+            // Display all correct options for the user
+            feedbackEl.textContent = `❌ Incorrect. The correct translation(s) are: "${correctAnswers.map(a => a.toUpperCase()).join(' / ')}"`;
         }
 
+        scoreEl.textContent = score;
+        totalAttemptedEl.textContent = totalAttempted;
+    }
 
-        // --- Event Listeners ---
+    // NEW: Function to toggle translation mode
+    function toggleMode() {
+        isReverseMode = !isReverseMode;
+        // Reset score and start a new shuffled list
+        score = 0;
+        totalAttempted = 0;
+        scoreEl.textContent = 0;
+        totalAttemptedEl.textContent = 0;
+        
+        // Reshuffle the list
+        vocabularyList.sort(() => Math.random() - 0.5); 
+        
+        updateModeDisplay();
+        nextWord();
+    }
 
-        submitBtn.addEventListener('click', checkAnswer);
-        nextBtn.addEventListener('click', nextWord);
+    // NEW: Function to update the prompt text and button text
+    function updateModeDisplay() {
+        if (isReverseMode) {
+            promptTextEl.textContent = 'Translate the English word:';
+            toggleBtn.textContent = 'Switch to Turkish -> English';
+        } else {
+            promptTextEl.textContent = 'Translate the Turkish word:';
+            toggleBtn.textContent = 'Switch to English -> Turkish';
+        }
+    }
 
-        // Allow 'Enter' key to submit
-        answerInputEl.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && submitBtn.style.display !== 'none') {
-                checkAnswer();
-            }
-        });
 
+    // --- Event Listeners ---
 
-        // Start the application
-        loadVocabulary();
-    </script>
+    submitBtn.addEventListener('click', checkAnswer);
+    nextBtn.addEventListener('click', nextWord);
+    toggleBtn.addEventListener('click', toggleMode); // NEW: Toggle listener
+
+    // Allow 'Enter' key to submit
+    answerInputEl.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && submitBtn.style.display !== 'none') {
+            checkAnswer();
+        }
+    });
+
+    // Start the application
+    loadVocabulary();
+</script>
 
 </body>
 </html>
