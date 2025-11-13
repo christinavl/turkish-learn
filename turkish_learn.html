@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turkish Vocabulary Practice</title>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        h1 {
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+
+        #turkish-word {
+            font-size: 2.5em;
+            color: #34495e;
+            margin: 20px 0;
+        }
+
+        #answer-input {
+            width: 80%;
+            padding: 12px;
+            margin: 15px 0;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            font-size: 1.1em;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1em;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        #submit-btn {
+            background-color: #28a745;
+            color: white;
+        }
+
+        #submit-btn:hover {
+            background-color: #218838;
+        }
+
+        #next-btn {
+            background-color: #007bff;
+            color: white;
+        }
+
+        #next-btn:hover {
+            background-color: #0056b3;
+        }
+
+        #feedback {
+            min-height: 25px;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        .correct {
+            color: #28a745;
+        }
+
+        .incorrect {
+            color: #dc3545;
+        }
+
+        .scoreboard {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            font-size: 1.1em;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <h1>Turkish Vocabulary Challenge</h1>
+        <p id="word-count-info">Loading vocabulary...</p>
+
+        <div id="quiz-area">
+            <h2 id="turkish-word"></h2>
+            
+            <input type="text" id="answer-input" placeholder="Type the English translation..." autocomplete="off">
+            
+            <button id="submit-btn">Submit</button>
+            <button id="next-btn" style="display: none;">Next Word</button>
+
+            <p id="feedback"></p>
+        </div>
+
+        <div class="scoreboard">
+            <p>Score: <span id="score">0</span> / <span id="total-attempted">0</span></p>
+        </div>
+    </div>
+
+    <script>
+        const WORD_FILE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT02329tKFTl1kyqVzAIaUxXIYxWNq3FaisYjEUf0X4z3-S0JkaWWQJNUAphqCOcem1CuLf-9wa4XCO/pub?gid=244219585&single=true&output=csv'; 
+        let vocabularyList = [];
+        let currentWordIndex = -1;
+        let score = 0;
+        let totalAttempted = 0;
+
+        const turkishWordEl = document.getElementById('turkish-word');
+        const answerInputEl = document.getElementById('answer-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const feedbackEl = document.getElementById('feedback');
+        const scoreEl = document.getElementById('score');
+        const totalAttemptedEl = document.getElementById('total-attempted');
+        const wordCountInfoEl = document.getElementById('word-count-info');
+
+        // --- Core Functions ---
+
+        // 1. Fetch and Parse the CSV file
+        async function loadVocabulary() {
+            try {
+                // Since this is running locally (file:// protocol), fetching may be restricted in some browsers.
+                // Chrome usually allows local file fetching for development/testing.
+                const response = await fetch(WORD_FILE); 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}. Please ensure 'vocabulary.csv' is in the same folder.`);
+                }
+                const csvText = await response.text();
+                
+                const lines = csvText.trim().split('\n');
+                
+                // Skip the header line (lines[0])
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    if (values.length >= 2) { 
+                        vocabularyList.push({
+                            // Assumes column 0 is Turkish, column 1 is English
+                            turkish: values[0].toLowerCase(), 
+                            english: values[1].toLowerCase() 
+                        });
+                    }
+                }
+                
+                vocabularyList = vocabularyList.filter(item => item.turkish !== '' && item.english !== '');
+
+                if (vocabularyList.length === 0) {
+                    wordCountInfoEl.textContent = "Error: Vocabulary list is empty. Check your CSV format (Turkish,English headers).";
+                    return;
+                }
+
+                vocabularyList.sort(() => Math.random() - 0.5); // Shuffle
+                
+                wordCountInfoEl.textContent = `Ready! ${vocabularyList.length} words loaded.`;
+                nextWord();
+
+            } catch (error) {
+                console.error("Could not load or parse vocabulary file:", error);
+                wordCountInfoEl.textContent = `🔴 Error loading vocabulary: ${error.message}`;
+            }
+        }
+
+        // 2. Display the next word
+        function nextWord() {
+            submitBtn.style.display = 'inline-block';
+            nextBtn.style.display = 'none';
+            
+            feedbackEl.textContent = '';
+            answerInputEl.value = '';
+            answerInputEl.disabled = false;
+            answerInputEl.focus(); 
+
+            // Move to the next word, wrapping around to the start
+            currentWordIndex = (currentWordIndex + 1) % vocabularyList.length;
+            
+            // Display the Turkish word in uppercase
+            turkishWordEl.textContent = vocabularyList[currentWordIndex].turkish.toUpperCase();
+        }
+
+        // 3. Check the user's answer
+        function checkAnswer() {
+            if (currentWordIndex === -1) return; 
+            
+            const correctEnglish = vocabularyList[currentWordIndex].english;
+            const userAnswer = answerInputEl.value.trim().toLowerCase();
+            
+            answerInputEl.disabled = true;
+            submitBtn.style.display = 'none';
+            nextBtn.style.display = 'inline-block';
+            nextBtn.focus(); 
+
+            totalAttempted++;
+            
+            if (userAnswer === correctEnglish) {
+                score++;
+                feedbackEl.className = 'correct';
+                feedbackEl.textContent = '✅ Correct! Well done.';
+            } else {
+                feedbackEl.className = 'incorrect';
+                feedbackEl.textContent = `❌ Incorrect. The correct translation is: "${correctEnglish.toUpperCase()}"`;
+            }
+
+            scoreEl.textContent = score;
+            totalAttemptedEl.textContent = totalAttempted;
+        }
+
+
+        // --- Event Listeners ---
+
+        submitBtn.addEventListener('click', checkAnswer);
+        nextBtn.addEventListener('click', nextWord);
+
+        // Allow 'Enter' key to submit
+        answerInputEl.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && submitBtn.style.display !== 'none') {
+                checkAnswer();
+            }
+        });
+
+
+        // Start the application
+        loadVocabulary();
+    </script>
+
+</body>
+</html>
