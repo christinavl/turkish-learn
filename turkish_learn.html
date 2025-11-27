@@ -32,27 +32,60 @@
             margin-bottom: 5px;
         }
 
-        #toggle-mode-btn {
-    background-color: #f0ad4e; /* Orange-ish color */
-    color: white;
-    margin-bottom: 20px;
-}
+        /* Flag Selector Styles */
+        .flag-selector {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
 
-#toggle-mode-btn:hover {
-    background-color: #ec971f;
-}
+        .flag-icon {
+            display: inline-block;
+            cursor: pointer;
+        }
 
-#prompt-text {
-    font-style: italic;
-    color: #555;
-}
+        .flag-icon img {
+            width: 40px; 
+            height: auto;
+            border: 3px solid transparent;
+            border-radius: 5px;
+            transition: border-color 0.2s;
+            vertical-align: middle;
+        }
 
-/* IMPORTANT: Update the ID for the main word display */
-#word-display {
-    font-size: 2.5em;
-    color: #34495e;
-    margin: 20px 0;
-}
+        /* Highlight the currently selected language flag */
+        .flag-icon.active img {
+            border-color: #007bff; /* Blue border for selected flag */
+        }
+
+        /* Instructions Box */
+        #instructions-box {
+            background-color: #f7f7f7;
+            border: 1px solid #eee;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
+        #current-mode-description {
+            margin: 0;
+            color: #555;
+            white-space: pre-line; /* Allows line breaks in the text */
+            font-weight: normal;
+        }
+        
+        #current-mode-description strong {
+            font-weight: bold;
+        }
+
+        #word-display {
+            font-size: 2.5em;
+            color: #34495e;
+            margin: 20px 0;
+        }
 
         #answer-input {
             width: 80%;
@@ -91,6 +124,17 @@
         #next-btn:hover {
             background-color: #0056b3;
         }
+        
+        #toggle-mode-btn {
+            background-color: #f0ad4e;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        #toggle-mode-btn:hover {
+            background-color: #ec971f;
+        }
+
 
         #feedback {
             min-height: 25px;
@@ -112,258 +156,311 @@
             border-top: 1px solid #eee;
             font-size: 1.1em;
         }
-        /* NEW STYLE for the Target Language Button */
-#target-lang-btn {
-    background-color: #5bc0de; /* Blue-ish color */
-    color: white;
-    margin-bottom: 10px;
-    margin-top: 5px;
-    font-weight: bold;
-}
-
-#target-lang-btn:hover {
-    background-color: #31b0d5;
-}
-
-/* Ensure the hr separators are visible */
-hr {
-    border: 0;
-    height: 1px;
-    background: #ccc;
-    margin: 15px 0;
-}
+        
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin: 15px 0;
+        }
     </style>
 </head>
 <body>
+    
     <div class="container">
-    <h1>Turkish Vocabulary Challenge</h1>
-    <p id="word-count-info">Loading vocabulary...</p>
+        <h1>Turkish Vocabulary Challenge</h1>
+        <p id="word-count-info">Loading vocabulary...</p>
 
-    <button id="target-lang-btn">Current Target: ENGLISH. Click to switch to GREEK.</button>
-    <hr>
-    
-    <button id="toggle-mode-btn">Switch Mode</button>
-    <hr> 
+        <div class="flag-selector">
+            <span id="flag-english" class="flag-icon" data-lang="english" title="Switch to English Target">
+                
 
-    <div id="quiz-area">
-        <p id="prompt-text">Translate the Turkish word:</p>
-        
-        <h2 id="word-display"></h2> 
-        
-        <input type="text" id="answer-input" placeholder="Type the English translation..." autocomplete="off">
-        
-        <button id="submit-btn">Submit</button>
-        <button id="next-btn" style="display: none;">Next Word</button>
+[Image of American Flag]
 
-        <p id="feedback"></p>
+            </span>
+            <span id="flag-greek" class="flag-icon" data-lang="greek" title="Switch to Greek Target">
+                
+
+[Image of Greek Flag]
+
+            </span>
+        </div>
+        <hr>
+
+        <div id="instructions-box">
+            <p id="current-mode-description"></p>
+        </div>
+        
+        <button id="toggle-mode-btn">Switch Mode</button>
+        <hr> 
+
+        <div id="quiz-area">
+            <p id="prompt-text"></p>
+            
+            <h2 id="word-display"></h2> 
+            
+            <input type="text" id="answer-input" placeholder="" autocomplete="off">
+            
+            <button id="submit-btn">Submit</button>
+            <button id="next-btn" style="display: none;">Next Word</button>
+
+            <p id="feedback"></p>
+        </div>
+
+        <div class="scoreboard">
+            <p id="scoreboard-text">Score: <span id="score">0</span> / <span id="total-attempted">0</span></p>
+        </div>
     </div>
 
-    <div class="scoreboard">
-        <p>Score: <span id="score">0</span> / <span id="total-attempted">0</span></p>
-    </div>
-</div>
+    <script>
+        // CONFIGURATION: *** REPLACE THIS WITH YOUR PUBLISHED GOOGLE SHEETS LINK ***
+        const WORD_FILE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT02329tKFTl1kyqVzAIaUxXIYxWNq3FaisYjEUf0X4z3-S0JkaWWQJNUAphqCOcem1CuLf-9wa4XCO/pub?gid=244219585&single=true&output=csv'; 
+        // -------------------------------------------------------------------------
 
-    <div class="scoreboard">
-        <p>Score: <span id="score">0</span> / <span id="total-attempted">0</span></p>
-    </div>
-</div>
+        let vocabularyList = [];
+        let currentWordIndex = -1;
+        let score = 0;
+        let totalAttempted = 0;
+        let isReverseMode = false; // Turkish -> Target vs. Target -> Turkish
+        let targetLanguage = 'english'; // Default: 'english' or 'greek' (controls the target column)
+        let uiLanguage = 'english'; // Default: 'english' or 'greek' (controls instructions/prompts language)
 
-<script>
-    // Configuration: Replace this with your published Google Sheets link
-    // IMPORTANT: Make sure your published link includes all three columns (A, B, C)
-    const WORD_FILE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT02329tKFTl1kyqVzAIaUxXIYxWNq3FaisYjEUf0X4z3-S0JkaWWQJNUAphqCOcem1CuLf-9wa4XCO/pub?gid=244219585&single=true&output=csv'; 
-
-    let vocabularyList = [];
-    let currentWordIndex = -1;
-    let score = 0;
-    let totalAttempted = 0;
-    let isReverseMode = false; // Turkish -> Target vs. Target -> Turkish
-    let targetLanguage = 'english'; // NEW: Can be 'english' or 'greek'
-
-    // DOM Elements
-    const wordDisplayEl = document.getElementById('word-display'); 
-    const answerInputEl = document.getElementById('answer-input');
-    const submitBtn = document.getElementById('submit-btn');
-    const nextBtn = document.getElementById('next-btn');
-    const feedbackEl = document.getElementById('feedback');
-    const scoreEl = document.getElementById('score');
-    const totalAttemptedEl = document.getElementById('total-attempted');
-    const wordCountInfoEl = document.getElementById('word-count-info');
-    const toggleBtn = document.getElementById('toggle-mode-btn'); 
-    const promptTextEl = document.getElementById('prompt-text'); 
-    const targetLangBtn = document.getElementById('target-lang-btn'); // NEW: Target language button
-
-    // --- Utility Functions ---
-
-    // Function to get the current source and target words for the quiz
-    function getCurrentWords(item) {
-        if (isReverseMode) {
-            // Reverse Mode: Target -> Turkish
-            const source = item[targetLanguage];
-            const target = item.turkish;
-            return { source, target, sourceLang: targetLanguage, targetLang: 'Turkish' };
-        } else {
-            // Normal Mode: Turkish -> Target
-            const source = item.turkish;
-            const target = item[targetLanguage];
-            return { source, target, sourceLang: 'Turkish', targetLang: targetLanguage };
-        }
-    }
-
-    // --- Core Functions ---
-
-    // 1. Fetch and Parse the CSV file (Updated to read 3 columns)
-    async function loadVocabulary() {
-        try {
-            const response = await fetch(WORD_FILE);
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}.`);
+        // --- TEXT DICTIONARY (Instructions and Prompts) ---
+        const TEXT_DICTIONARY = {
+            english: {
+                loading: "Loading vocabulary...",
+                error: "🔴 Error loading vocabulary:",
+                emptyList: "Error: Vocabulary list is empty. Check your data source.",
+                modeToggle: (source, target) => `Switch to ${target} → ${source}`,
+                prompt: (lang) => `Translate the ${lang} word:`,
+                score: "Score:",
+                correct: "✅ Correct! Well done.",
+                incorrect: (targetLang, answers) => `❌ Incorrect. The correct ${targetLang} translation(s) are: "${answers.map(a => a.toUpperCase()).join(' / ')}"`
+            },
+            greek: {
+                loading: "Φόρτωση λεξιλογίου...",
+                error: "🔴 Σφάλμα φόρτωσης λεξιλογίου:",
+                emptyList: "Σφάλμα: Η λίστα λεξιλογίου είναι κενή. Ελέγξτε την πηγή δεδομένων σας.",
+                modeToggle: (source, target) => `Αλλαγή σε ${target} → ${source}`,
+                prompt: (lang) => `Μεταφράστε την ${lang} λέξη:`,
+                score: "Σκορ:",
+                correct: "✅ Σωστό! Μπράβο.",
+                incorrect: (targetLang, answers) => `❌ Λάθος. Η σωστή μετάφραση στα ${targetLang} είναι: "${answers.map(a => a.toUpperCase()).join(' / ')}"`
             }
-            const csvText = await response.text();
-            
-            const lines = csvText.trim().split('\n');
-            
-            // Assuming headers are Turkish,English,Greek
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim());
-                if (values.length >= 3) { 
-                    vocabularyList.push({
-                        // Assumes Col A is Turkish, Col B is English, Col C is Greek
-                        turkish: values[0].toLowerCase(), 
-                        english: values[1].toLowerCase(), 
-                        greek: values[2].toLowerCase() // NEW: Greek data
-                    });
+        };
+
+        // --- DOM Elements ---
+        const wordDisplayEl = document.getElementById('word-display'); 
+        const answerInputEl = document.getElementById('answer-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const feedbackEl = document.getElementById('feedback');
+        const scoreEl = document.getElementById('score');
+        const totalAttemptedEl = document.getElementById('total-attempted');
+        const wordCountInfoEl = document.getElementById('word-count-info');
+        const toggleBtn = document.getElementById('toggle-mode-btn'); 
+        const promptTextEl = document.getElementById('prompt-text'); 
+        const instructionsBoxEl = document.getElementById('current-mode-description');
+        const scoreboardTextEl = document.getElementById('scoreboard-text');
+        const flagEnglishEl = document.getElementById('flag-english');
+        const flagGreekEl = document.getElementById('flag-greek');
+
+
+        // --- Utility Functions ---
+
+        function getUILangText(key, ...args) {
+            let text = TEXT_DICTIONARY[uiLanguage][key];
+            return (typeof text === 'function') ? text(...args) : text;
+        }
+
+        function getCurrentWords(item) {
+            if (isReverseMode) {
+                // Reverse Mode: Target -> Turkish
+                const source = item[targetLanguage];
+                const target = item.turkish;
+                return { source, target, sourceLang: targetLanguage, targetLang: 'Turkish' };
+            } else {
+                // Normal Mode: Turkish -> Target
+                const source = item.turkish;
+                const target = item[targetLanguage];
+                return { source, target, sourceLang: 'Turkish', targetLang: targetLanguage };
+            }
+        }
+        
+        function setTargetLanguage(newTarget) {
+            if (targetLanguage !== newTarget) {
+                targetLanguage = newTarget;
+                // Set UI language to match the target language for instructions
+                uiLanguage = newTarget; 
+                resetQuiz();
+            }
+        }
+
+
+        // --- Core Functions ---
+
+        async function loadVocabulary() {
+            try {
+                wordCountInfoEl.textContent = getUILangText('loading');
+
+                const response = await fetch(WORD_FILE);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}.`);
                 }
+                const csvText = await response.text();
+                
+                const lines = csvText.trim().split('\n');
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim());
+                    // Assumes Turkish, English, Greek are Col 0, 1, 2
+                    if (values.length >= 3) { 
+                        vocabularyList.push({
+                            turkish: values[0].toLowerCase(), 
+                            english: values[1].toLowerCase(), 
+                            greek: values[2].toLowerCase() 
+                        });
+                    }
+                }
+                
+                vocabularyList = vocabularyList.filter(item => item.turkish !== '' && (item.english !== '' || item.greek !== ''));
+
+                if (vocabularyList.length === 0) {
+                    wordCountInfoEl.textContent = getUILangText('emptyList');
+                    return;
+                }
+
+                vocabularyList.sort(() => Math.random() - 0.5); 
+                
+                wordCountInfoEl.textContent = `Ready! ${vocabularyList.length} words loaded.`;
+                updateDisplayTexts(); 
+                nextWord();
+
+            } catch (error) {
+                console.error("Could not load vocabulary file:", error);
+                wordCountInfoEl.textContent = `${getUILangText('error')} ${error.message}`;
+            }
+        }
+
+        function nextWord() {
+            submitBtn.style.display = 'inline-block';
+            nextBtn.style.display = 'none';
+            
+            feedbackEl.textContent = '';
+            answerInputEl.value = '';
+            answerInputEl.disabled = false;
+            answerInputEl.focus(); 
+
+            currentWordIndex = (currentWordIndex + 1) % vocabularyList.length;
+            
+            const currentItem = vocabularyList[currentWordIndex];
+            const { source, targetLang } = getCurrentWords(currentItem);
+
+            wordDisplayEl.textContent = source;
+            answerInputEl.placeholder = `Type the ${targetLang} translation...`; 
+        }
+
+        function checkAnswer() {
+            if (currentWordIndex === -1) return; 
+            
+            const currentItem = vocabularyList[currentWordIndex];
+            const userAnswer = answerInputEl.value.trim().toLowerCase();
+
+            const { target, targetLang } = getCurrentWords(currentItem);
+            
+            const correctAnswers = target.split('/').map(ans => ans.trim());
+            const isCorrect = correctAnswers.includes(userAnswer);
+
+            answerInputEl.disabled = true;
+            submitBtn.style.display = 'none';
+            nextBtn.style.display = 'inline-block';
+            nextBtn.focus(); 
+
+            totalAttempted++;
+            
+            if (isCorrect) {
+                score++;
+                feedbackEl.className = 'correct';
+                feedbackEl.textContent = getUILangText('correct');
+            } else {
+                feedbackEl.className = 'incorrect';
+                feedbackEl.textContent = getUILangText('incorrect', targetLang, correctAnswers);
+            }
+
+            scoreEl.textContent = score;
+            totalAttemptedEl.textContent = totalAttempted;
+            
+            updateScoreboardText();
+        }
+
+        function toggleMode() {
+            isReverseMode = !isReverseMode;
+            resetQuiz();
+        }
+        
+        function resetQuiz() {
+            score = 0;
+            totalAttempted = 0;
+            scoreEl.textContent = 0;
+            totalAttemptedEl.textContent = 0;
+            
+            if (vocabularyList.length > 0) {
+                 vocabularyList.sort(() => Math.random() - 0.5); 
             }
             
-            vocabularyList = vocabularyList.filter(item => item.turkish !== '' && (item.english !== '' || item.greek !== ''));
-
-            if (vocabularyList.length === 0) {
-                wordCountInfoEl.textContent = "Error: Vocabulary list is empty. Check your data source.";
-                return;
-            }
-
-            vocabularyList.sort(() => Math.random() - 0.5); // Shuffle
-            
-            wordCountInfoEl.textContent = `Ready! ${vocabularyList.length} words loaded.`;
-            updateDisplayTexts(); 
+            updateDisplayTexts();
             nextWord();
-
-        } catch (error) {
-            console.error("Could not load vocabulary file:", error);
-            wordCountInfoEl.textContent = `🔴 Error loading vocabulary: ${error.message}`;
-        }
-    }
-
-    // 2. Display the next word (Dynamically uses targetLanguage)
-    function nextWord() {
-        submitBtn.style.display = 'inline-block';
-        nextBtn.style.display = 'none';
-        
-        feedbackEl.textContent = '';
-        answerInputEl.value = '';
-        answerInputEl.disabled = false;
-        answerInputEl.focus(); 
-
-        currentWordIndex = (currentWordIndex + 1) % vocabularyList.length;
-        
-        const currentItem = vocabularyList[currentWordIndex];
-        const { source, targetLang } = getCurrentWords(currentItem);
-
-        wordDisplayEl.textContent = source;
-        answerInputEl.placeholder = `Type the ${targetLang} translation...`;
-    }
-
-    // 3. Check the user's answer (Multiple meanings and dynamic target)
-    function checkAnswer() {
-        if (currentWordIndex === -1) return; 
-        
-        const currentItem = vocabularyList[currentWordIndex];
-        const userAnswer = answerInputEl.value.trim().toLowerCase();
-
-        const { target, targetLang } = getCurrentWords(currentItem);
-        
-        // Split the correct answers by '/' and trim whitespace
-        const correctAnswers = target.split('/').map(ans => ans.trim());
-        
-        // Check if the user answer matches ANY of the correct options
-        const isCorrect = correctAnswers.includes(userAnswer);
-
-        answerInputEl.disabled = true;
-        submitBtn.style.display = 'none';
-        nextBtn.style.display = 'inline-block';
-        nextBtn.focus(); 
-
-        totalAttempted++;
-        
-        if (isCorrect) {
-            score++;
-            feedbackEl.className = 'correct';
-            feedbackEl.textContent = '✅ Correct! Well done.';
-        } else {
-            feedbackEl.className = 'incorrect';
-            feedbackEl.textContent = `❌ Incorrect. The correct ${targetLang} translation(s) are: "${correctAnswers.map(a => a.toUpperCase()).join(' / ')}"`;
         }
 
-        scoreEl.textContent = score;
-        totalAttemptedEl.textContent = totalAttempted;
-    }
+        function updateDisplayTexts() {
+            const sourceLangDisplay = (isReverseMode ? targetLanguage : 'Turkish').toUpperCase();
+            const destLangDisplay = (isReverseMode ? 'Turkish' : targetLanguage).toUpperCase();
+            
+            // 1. Update Flag Visuals
+            flagEnglishEl.classList.toggle('active', targetLanguage === 'english');
+            flagGreekEl.classList.toggle('active', targetLanguage === 'greek');
 
-    // Function to toggle translation mode (Turkish <-> Target)
-    function toggleMode() {
-        isReverseMode = !isReverseMode;
-        resetQuiz();
-    }
-    
-    // NEW: Function to switch between English and Greek targets
-    function switchTargetLanguage() {
-        targetLanguage = (targetLanguage === 'english') ? 'greek' : 'english';
-        resetQuiz();
-    }
-    
-    // Function to reset score and reshuffle
-    function resetQuiz() {
-        score = 0;
-        totalAttempted = 0;
-        scoreEl.textContent = 0;
-        totalAttemptedEl.textContent = 0;
-        
-        if (vocabularyList.length > 0) {
-             vocabularyList.sort(() => Math.random() - 0.5); // Reshuffle the list
+            // 2. Update Toggle Button Text and Prompt
+            toggleBtn.textContent = getUILangText('modeToggle', destLangDisplay, sourceLangDisplay);
+            promptTextEl.textContent = getUILangText('prompt', sourceLangDisplay);
+            
+            // 3. Update Instructions (long text)
+            updateInstructionsBox(sourceLangDisplay, destLangDisplay);
+            
+            // 4. Update Scoreboard Text
+            updateScoreboardText();
         }
         
-        updateDisplayTexts();
-        nextWord();
-    }
-
-    // Function to update all dynamic text elements
-    function updateDisplayTexts() {
-        const sourceLang = isReverseMode ? targetLanguage : 'Turkish';
-        const destLang = isReverseMode ? 'Turkish' : targetLanguage;
-        
-        promptTextEl.textContent = `Translate the ${sourceLang.charAt(0).toUpperCase() + sourceLang.slice(1)} word:`;
-        toggleBtn.textContent = `Switch to ${destLang.charAt(0).toUpperCase() + destLang.slice(1)} → ${sourceLang.charAt(0).toUpperCase() + sourceLang.slice(1)}`;
-        
-        targetLangBtn.textContent = `Current Target: ${targetLanguage.toUpperCase()}. Click to switch.`;
-    }
-
-
-    // --- Event Listeners ---
-
-    submitBtn.addEventListener('click', checkAnswer);
-    nextBtn.addEventListener('click', nextWord);
-    toggleBtn.addEventListener('click', toggleMode);
-    targetLangBtn.addEventListener('click', switchTargetLanguage); // NEW: Listener for target language
-
-    // Allow 'Enter' key to submit
-    answerInputEl.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && submitBtn.style.display !== 'none') {
-            checkAnswer();
+        function updateInstructionsBox(source, target) {
+            const instructions = {
+                english: `Current Language: <strong>${target.toUpperCase()}</strong>.\n\nInstructions:\n- The quiz asks you to translate the <strong>${source}</strong> word into <strong>${target}</strong>.\n- Use the toggle button below to switch the direction.\n- Enter the answer in lowercase. Multiple answers (e.g., 'house/home') are allowed.`,
+                greek: `Τρέχουσα Γλώσσα: <strong>${target.toUpperCase()}</strong>.\n\nΟδηγίες:\n- Το κουίζ σας ζητά να μεταφράσετε την <strong>${source}</strong> λέξη στα <strong>${target}</strong>.\n- Χρησιμοποιήστε το κουμπί από κάτω για να αλλάξετε την κατεύθυνση.\n- Καταχωρήστε την απάντηση με πεζά γράμματα. Επιτρέπονται πολλαπλές απαντήσεις (π.χ. 'σπίτι/οικία').`
+            };
+            // innerHTML is used to render the bolding (<strong>) and line breaks (<br>)
+            instructionsBoxEl.innerHTML = instructions[uiLanguage].replace(/\n/g, '<br>'); 
         }
-    });
+        
+        function updateScoreboardText() {
+             scoreboardTextEl.innerHTML = `${getUILangText('score')} <span id="score">${score}</span> / <span id="total-attempted">${totalAttempted}</span>`;
+        }
 
-    // Start the application
-    loadVocabulary();
-</script>
+        // --- Event Listeners ---
+
+        submitBtn.addEventListener('click', checkAnswer);
+        nextBtn.addEventListener('click', nextWord);
+        toggleBtn.addEventListener('click', toggleMode);
+        
+        flagEnglishEl.addEventListener('click', () => setTargetLanguage('english'));
+        flagGreekEl.addEventListener('click', () => setTargetLanguage('greek'));
+
+        answerInputEl.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && submitBtn.style.display !== 'none') {
+                checkAnswer();
+            }
+        });
+
+        // Start the application
+        loadVocabulary();
+    </script>
 </body>
 </html>
