@@ -171,21 +171,11 @@
         <h1>Turkish Vocabulary Challenge</h1>
         <p id="word-count-info">Loading vocabulary...</p>
 
-        <div class="flag-selector">
-            <span id="flag-english" class="flag-icon" data-lang="english" title="Switch to English Target">
-                
-
-[Image of American Flag]
-
-            </span>
-            <span id="flag-greek" class="flag-icon" data-lang="greek" title="Switch to Greek Target">
-                
-
-[Image of Greek Flag]
-
-            </span>
-        </div>
-        <hr>
+        <div class="language-selector-buttons">
+    <button id="lang-btn-english" class="lang-select-btn active" data-lang="english">English</button>
+    <button id="lang-btn-greek" class="lang-select-btn" data-lang="greek">Ελληνικά</button>
+</div>
+<hr>
 
         <div id="instructions-box">
             <p id="current-mode-description"></p>
@@ -232,7 +222,7 @@
                 error: "🔴 Error loading vocabulary:",
                 emptyList: "Error: Vocabulary list is empty. Check your data source.",
                 modeToggle: (source, target) => `Switch to ${target} → ${source}`,
-                prompt: (lang) => `Translate the ${lang} word:`,
+                prompt: (lang) => `Translate the word:`,
                 score: "Score:",
                 correct: "✅ Correct! Well done.",
                 incorrect: (targetLang, answers) => `❌ Incorrect. The correct ${targetLang} translation(s) are: "${answers.map(a => a.toUpperCase()).join(' / ')}"`
@@ -242,7 +232,7 @@
                 error: "🔴 Σφάλμα φόρτωσης λεξιλογίου:",
                 emptyList: "Σφάλμα: Η λίστα λεξιλογίου είναι κενή. Ελέγξτε την πηγή δεδομένων σας.",
                 modeToggle: (source, target) => `Αλλαγή σε ${target} → ${source}`,
-                prompt: (lang) => `Μεταφράστε την ${lang} λέξη:`,
+                prompt: (lang) => `Μεταφράστε την λέξη:`,
                 score: "Σκορ:",
                 correct: "✅ Σωστό! Μπράβο.",
                 incorrect: (targetLang, answers) => `❌ Λάθος. Η σωστή μετάφραση στα ${targetLang} είναι: "${answers.map(a => a.toUpperCase()).join(' / ')}"`
